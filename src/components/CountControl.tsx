@@ -1,18 +1,26 @@
 import { container } from "tsyringe";
-import Store from "../stores/Store";
+import CounterStore from "../stores/CounterStore";
 
 export default function CountControl() {
-  const store = container.resolve(Store);
+  const store = container.resolve(CounterStore);
 
-  const handleClick = () => {
+  const handleClickIncrease = () => {
     store.count += 1;
-    store.forceUpdate();
+    store.publish();
+  };
+
+  const handleClickDecrease = () => {
+    store.count -= 1;
+    store.publish();
   };
 
   return (
     <div>
-      <button type="button" onClick={handleClick}>
+      <button type="button" onClick={handleClickIncrease}>
         Increase
+      </button>
+      <button type="button" onClick={handleClickDecrease}>
+        Decrease
       </button>
     </div>
   );
