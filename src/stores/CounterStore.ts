@@ -1,34 +1,21 @@
 import { singleton } from "tsyringe";
-
-type Listener = () => void;
+import ObjectStore from "./ObjectStore";
 
 @singleton()
-export default class CounterStore {
+export default class CounterStore extends ObjectStore {
   count = 0;
 
-  listeners = new Set<Listener>();
-
-  increase() {
-    this.count += 1;
+  /**
+   * 카운트를 증가시킨다.
+   * @param step
+   */
+  increase(step = 1) {
+    this.count += step;
     this.publish();
   }
 
-  decrease() {
-    this.count -= 1;
+  decrease(step = 1) {
+    this.count -= step;
     this.publish();
-  }
-
-  publish() {
-    this.listeners.forEach((listener) => {
-      listener();
-    });
-  }
-
-  addListener(listener: Listener) {
-    this.listeners.add(listener);
-  }
-
-  removeListener(listener: Listener) {
-    this.listeners.delete(listener);
   }
 }

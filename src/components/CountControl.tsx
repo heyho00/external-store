@@ -1,30 +1,22 @@
-import useDispatch from "../hooks/useDispatch";
-import useSelector from "../hooks/useSelector";
-import { decrease, increase } from "../stores/Store";
+import useCounterStore from "../hooks/useCounterStore";
 
 export default function CountControl() {
-  const dispatch = useDispatch();
-
-  const count = useSelector((state) => state.count);
-  //굳이 해보자면
-  const countAndName = useSelector((state) => ({
-    count: state.count,
-    name: state.name,
-  }));
+  const store = useCounterStore();
+  const { count } = store;
 
   return (
     <div>
-      <p>{countAndName.count}</p>
-      <button type="button" onClick={() => dispatch(increase())}>
+      <p>{count}</p>
+      <button type="button" onClick={() => store.increase()}>
         Increase
       </button>
-      <button type="button" onClick={() => dispatch(increase(10))}>
+      <button type="button" onClick={() => store.increase(10)}>
         Increase 10
       </button>
-      <button type="button" onClick={() => dispatch(decrease())}>
+      <button type="button" onClick={() => store.decrease()}>
         Decrease
       </button>
-      <button type="button" onClick={() => dispatch(decrease(10))}>
+      <button type="button" onClick={() => store.decrease(10)}>
         Decrease
       </button>
     </div>
