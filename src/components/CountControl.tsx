@@ -1,14 +1,14 @@
-import useCounterStore from "../hooks/useCounterStore";
+import useStore from "../hooks/useStore";
 
 export default function CountControl() {
-  const store = useCounterStore();
+  const store = useStore();
 
   const handleClickIncrease = () => {
-    store.increase();
+    store.dispatch({ type: "increase" });
   };
 
   const handleClickDecrease = () => {
-    store.decrease();
+    store.dispatch({ type: "decrease" });
   };
 
   return (
