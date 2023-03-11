@@ -1,17 +1,14 @@
-import { container } from "tsyringe";
-import CounterStore from "../stores/CounterStore";
+import useCounterStore from "../hooks/useCounterStore";
 
 export default function CountControl() {
-  const store = container.resolve(CounterStore);
+  const store = useCounterStore();
 
   const handleClickIncrease = () => {
-    store.count += 1;
-    store.publish();
+    store.increase();
   };
 
   const handleClickDecrease = () => {
-    store.count -= 1;
-    store.publish();
+    store.decrease();
   };
 
   return (
