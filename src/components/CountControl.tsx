@@ -18,7 +18,13 @@ export default function CountControl() {
       <button type="button" onClick={() => dispatch(increase())}>
         Increase
       </button>
+      <button type="button" onClick={() => dispatch(increase(10))}>
+        Increase 10
+      </button>
       <button type="button" onClick={() => dispatch(decrease())}>
+        Decrease
+      </button>
+      <button type="button" onClick={() => dispatch(decrease(10))}>
         Decrease
       </button>
     </div>
