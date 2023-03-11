@@ -1,22 +1,21 @@
 import useCounterStore from "../hooks/useCounterStore";
 
 export default function CountControl() {
-  const store = useCounterStore();
-
-  const handleClickIncrease = () => {
-    store.increase();
-  };
-
-  const handleClickDecrease = () => {
-    store.decrease();
-  };
+  const [{ count }, store] = useCounterStore();
 
   return (
     <div>
-      <button type="button" onClick={handleClickIncrease}>
+      <p>{count}</p>
+      <button type="button" onClick={() => store.increase()}>
         Increase
       </button>
-      <button type="button" onClick={handleClickDecrease}>
+      <button type="button" onClick={() => store.increase(10)}>
+        Increase 10
+      </button>
+      <button type="button" onClick={() => store.decrease()}>
+        Decrease
+      </button>
+      <button type="button" onClick={() => store.decrease(10)}>
         Decrease
       </button>
     </div>
