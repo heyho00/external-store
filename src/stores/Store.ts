@@ -1,10 +1,11 @@
 import { singleton } from "tsyringe";
 import BaseStore, { Action } from "./BaseStore";
 
-type State = typeof initialState;
+export type State = typeof initialState;
 
 const initialState = {
   count: 0,
+  name: "harry",
 };
 
 function reducer(state: State, action: Action) {
@@ -22,6 +23,13 @@ function reducer(state: State, action: Action) {
     default:
       return state;
   }
+}
+
+export function increase() {
+  return { type: "increase" };
+}
+export function decrease() {
+  return { type: "decrease" };
 }
 
 @singleton()
