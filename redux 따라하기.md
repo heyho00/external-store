@@ -728,3 +728,498 @@ export default class ReduxStore extends BaseStore<State> {
   }
 }
 ```
+
+## useSelector
+
+값을 받을때도 한 겹 감싼다. 현재 useReduxStore에서 바로 가져오고 있다.
+
+```js
+import useDispatch from "../hooks/useDispatch";
+import useReduxStore from "../hooks/useReduxStore";
+import { decrease, increase } from "../stores/ReduxStore";
+
+export default function CountControl() {
+  const dispatch = useDispatch();
+
+  const { state } = useReduxStore();
+
+  return (
+    <>
+      <p>{state.count}</p>
+      <button type="button" onClick={() => dispatch(increase())}>
+        Increase
+      </button>
+
+      <button type="button" onClick={() => dispatch(decrease())}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+이렇게 변한다.; 한 꺼풀 한 꺼풀 나누는 모양..
+
+```js
+import useDispatch from "../hooks/useDispatch";
+import useReduxStore from "../hooks/useReduxStore";
+import { State, decrease, increase } from "../stores/ReduxStore";
+
+type Selector<T> = (state: State) => T;
+
+function useSelector<T>(selector: Selector<T>): T {
+  const store = useReduxStore();
+
+  return selector(store.state);
+}
+
+export default function CountControl() {
+  const dispatch = useDispatch();
+
+  const count = useSelector((state) => state.count);
+
+  return (
+    <>
+      <p>{count}</p>
+      <button type="button" onClick={() => dispatch(increase())}>
+        Increase
+      </button>
+
+      <button type="button" onClick={() => dispatch(decrease())}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+useSelector 훅은 selector 함수를 받아 거기에 스토어의 state를 넣어
+
+state의 특정 프로퍼티를 리턴하는 함수다.
+
+selector 함수는 (state) => state.count 로 구현되어 있다. 다른 프로퍼티를 원하면
+
+여기서 다른 키를 넣어주면 되겠다. (ex. state.id, state.age ...)
+
+마찬가지로 훅을 다른 파일로 빼준다.
+
+Counter.tsx에서도 활용해보자.
+
+```js
+// import useReduxStore from "../hooks/useReduxStore";
+import useSelector from "../hooks/useSelector";
+
+export default function Counter() {
+  const count = useSelector((state) => state.count);
+  //   const store = useReduxStore();
+  //   const { state } = store;
+
+  return (
+    <>
+      <div>Count: {state.count}</div>
+      <div>Count: {count}</div>
+    </>
+  );
+}
+```
+
+### store에서 넘겨주는것도 조금 다르게 해보자.
+
+```js
+import { singleton } from "tsyringe";
+import BaseStore, { Action } from "./BaseStore";
+
+export type State = typeof initialState;
+
+const initialState = {
+  count: 0,
+};
+
+// 추가 ------------------------------------------
+const reducers = {
+  increase(state: State, action: Action) {
+    return {
+      ...state,
+      count: state.count + 1,
+    };
+  },
+  decrease(state: State, action: Action) {
+    return {
+      ...state,
+      count: state.count - 1,
+    };
+  },
+};
+
+// -------------------------------------------------
+
+function reducer(state: State, action: Action) {
+//   switch (action.type) {
+//     case "increase":
+//       return {
+//         ...state,
+//         count: state.count + 1,
+//       };
+//     case "decrease":
+//       return {
+//         ...state,
+//         count: state.count - 1,
+//       };
+//     default:
+//       return state;
+//   }
+
+ 이렇게바뀜.
+ // const f = reducers[action.type]; // 이렇게 하고 싶지만 그냥 못 얻는다함.
+  const f = Reflect.get(reducers, action.type); //이렇게 해줘야 됨.
+  if (!f) {
+    return state;
+  }
+  return f(state, action);
+
+}
+
+export function increase() {
+  return { type: "increase" };
+}
+
+export function decrease() {
+  return { type: "decrease" };
+}
+
+@singleton()
+export default class ReduxStore extends BaseStore<State> {
+  constructor() {
+    super(initialState, reducer);
+  }
+}
+```
+
+아주 우아하다.
+
+switch문을 통해 action.type에 해당하는 reducer 동작을 하는것과,
+
+action.type을 키로 객체의 프로퍼티를 찾아 실행하는 차이인데
+
+이런 사용법을 constant를 정리하거나 할때 많이 봤다.
+
+switch나 if문을 쓰는게 좀 더 인간이 바로 떠올릴 수 있는 방법에 가까워서 그런가
+
+뒤 방법이 더 우아하게 느껴진다. 내부적으로 switch문보다 빠르지 않을까도 싶다.
+
+## 값을 10씩 변화시키는 버튼을 만들자
+
+```js
+import useDispatch from "../hooks/useDispatch";
+import useSelector from "../hooks/useSelector";
+import { decrease, increase } from "../stores/ReduxStore";
+
+export default function CountControl() {
+  const dispatch = useDispatch();
+
+  const count = useSelector((state) => state.count);
+
+  return (
+    <>
+      <p>{count}</p>
+      <button type="button" onClick={() => dispatch(increase())}>
+        Increase
+      </button>
+      <button type="button" onClick={() => dispatch(increase(10))}>
+        Increase 10
+      </button>
+
+      <button type="button" onClick={() => dispatch(decrease())}>
+        Decrease
+      </button>
+      <button type="button" onClick={() => dispatch(decrease(10))}>
+        Decrease 10
+      </button>
+    </>
+  );
+}
+```
+
+우선 버튼을 위처럼 만들었다.
+
+increase, decrease 구현체로 간다.
+
+```js
+// ReduxStore.ts
+
+.
+.
+.
+export function increase(step = 1) {
+  return { type: "increase", payload: step };
+}
+
+export function decrease(step = 1) {
+  return { type: "decrease", payload: step };
+}
+
+@singleton()
+export default class ReduxStore extends BaseStore<State> {
+  constructor() {
+    super(initialState, reducer);
+  }
+}
+
+```
+
+step을 인자로 받아 payload라는 키로 action 객체에 추가해준다.
+
+키 네임은 step 그대로 써도 되고 아무거나 써도 상관없지만
+
+Redux tool kit에서 도입한 용어라 똑같이 썼다.
+
+Action 타입에 추가해주고 여러군데 타이핑한다.
+
+```js
+// BaseStore.ts
+type Listener = () => void;
+
+export type Action<Payload> = {
+  type: string;
+  payload?: Payload;
+};
+
+type Reducer<State, Payload> = (state: State, action: Action<Payload>) => State;
+
+export default class BaseStore<State> {
+  state: State;
+
+  reducer: Reducer<State, any>;
+
+  constructor(initialState: State, reducer: Reducer<State, any>) {
+    this.state = initialState;
+    this.reducer = reducer;
+  }
+
+  dispatch(action: Action<any>) {
+    this.state = this.reducer(this.state, action);
+    this.publish();
+  }
+
+  listeners = new Set<Listener>();
+
+  publish() {
+    this.listeners.forEach((listener) => {
+      listener();
+    });
+  }
+
+  addListener(listener: Listener) {
+    this.listeners.add(listener);
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
+  }
+}
+
+```
+
+```js
+// ReduxStore.ts
+
+.
+.
+.
+
+const reducers = {
+  increase(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count + (action.payload ?? 1),
+    };
+  },
+  decrease(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count - (action.payload ?? 1),
+    };
+  },
+};
+.
+.
+.
+
+```
+
+### 복잡주의
+
+```js
+// ReduxStore.ts
+
+import { singleton } from "tsyringe";
+import BaseStore, { Action } from "./BaseStore";
+
+export type State = typeof initialState;
+
+const initialState = {
+  count: 0,
+};
+
+const reducers = {
+  increase(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count + (action.payload ?? 1),
+    };
+  },
+  decrease(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count - (action.payload ?? 1),
+    };
+  },
+};
+
+// ------------------------------------------------------------
+
+여기를 안쪽에서 만든다함
+
+//없앰
+// function reducer(state: State, action: Action<any>) {
+//   const f = Reflect.get(reducers, action.type);
+//   if (!f) {
+//     return state;
+//   }
+//   return f(state, action);
+// }
+// ------------------------------------------------------------
+export function increase(step = 1) {
+  return { type: "increase", payload: step };
+}
+
+export function decrease(step = 1) {
+  return { type: "decrease", payload: step };
+}
+
+@singleton()
+export default class ReduxStore extends BaseStore<State> {
+  constructor() {
+    // super(initialState, reducer);
+    super(initialState, reducers); // reducers를 넘김. 안에서 만들꺼라함
+  }
+}
+
+
+BaseStore로 간다.
+```
+
+```js
+// BaseStore.ts
+
+type Listener = () => void;
+
+export type Action<Payload> = {
+  type: string;
+  payload?: Payload;
+};
+
+type Reducer<State, Payload> = (state: State, action: Action<Payload>) => State;
+
+type Reducers<State> = Reducer<State, any>{} // 추가
+
+export default class BaseStore<State> {
+  state: State;
+
+  reducer: Reducer<State, any>;
+
+//   constructor(initialState: State, reducer: Reducer<State, any>) {
+  constructor(initialState: State, reducers: Reducers<State>) {
+    this.state = initialState;
+// 복붙 -------------------------------------------------
+    this.reducer = (state: State, action: Action<any>) => {
+      const f = Reflect.get(reducers, action.type);
+      if (!f) {
+        return state;
+      }
+      return f(state, action);
+    };
+//  -------------------------------------------------
+    }
+
+
+
+
+  dispatch(action: Action<any>) {
+    this.state = this.reducer(this.state, action);
+    this.publish();
+  }
+
+  listeners = new Set<Listener>();
+
+  publish() {
+    this.listeners.forEach((listener) => {
+      listener();
+    });
+  }
+
+  addListener(listener: Listener) {
+    this.listeners.add(listener);
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
+  }
+}
+
+```
+
+이 부분 reducer를 BaseStore로 옮기는 부분.. 타이핑과 함께 굉장히 복잡해서 반복 학습 필요..
+
+### useDispatch.tsx
+
+```js
+// import useReduxStore from "./useReduxStore";
+import { Action } from "../stores/BaseStore";
+import ReduxStore from "../stores/ReduxStore";
+import { container } from "tsyringe";
+
+export default function useDispatch<Payload>() {
+  const store = container.resolve(ReduxStore);
+
+  return (action: Action<Payload>) => store.dispatch(action);
+}
+```
+
+값을 부르는 것 까진 필요없고 dispatch만 가져오려고 useReduxStore 대신
+
+container.resolve(ReduxStore) 한다.
+
+## useSelector, useReduxStore를 합친다.
+
+useReduxStore가 useCounterStore랑 똑같이 만든거라..
+
+```js
+// useSelector.tsx
+
+import ReduxStore, { State } from "../stores/ReduxStore";
+import { container } from "tsyringe";
+import useForceUpdate from "./useForceUpdate";
+import { useEffect } from "react";
+
+type Selector<T> = (state: State) => T;
+
+export default function useSelector<T>(selector: Selector<T>): T {
+  //   const store = useReduxStore();  안에 내용을 그대로 밑에 가져옴.
+  const store = container.resolve(ReduxStore);
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    store.addListener(forceUpdate);
+
+    return () => {
+      store.removeListener(forceUpdate);
+    };
+  }, [store, forceUpdate]);
+
+  return selector(store.state);
+}
+```
+
+useReduxStore 지워버린다.

@@ -1,12 +1,11 @@
-import useReduxStore from "../hooks/useReduxStore";
+import useSelector from "../hooks/useSelector";
 
 export default function Counter() {
-  const store = useReduxStore();
-  const { state } = store;
+  const count = useSelector((state) => state.count);
 
   return (
     <>
-      <div>Count: {state.count}</div>
+      <div>Count: {count}</div>
     </>
   );
 }

@@ -1,40 +1,38 @@
 import { singleton } from "tsyringe";
 import BaseStore, { Action } from "./BaseStore";
 
-type State = typeof initialState;
+export type State = typeof initialState;
 
 const initialState = {
   count: 0,
 };
 
-function reducer(state: State, action: Action) {
-  switch (action.type) {
-    case "increase":
-      return {
-        ...state,
-        count: state.count + 1,
-      };
-    case "decrease":
-      return {
-        ...state,
-        count: state.count - 1,
-      };
-    default:
-      return state;
-  }
+const reducers = {
+  increase(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count + (action.payload ?? 1),
+    };
+  },
+  decrease(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count - (action.payload ?? 1),
+    };
+  },
+};
+
+export function increase(step = 1) {
+  return { type: "increase", payload: step };
 }
 
-export function increase() {
-  return { type: "increase" };
-}
-
-export function decrease() {
-  return { type: "decrease" };
+export function decrease(step = 1) {
+  return { type: "decrease", payload: step };
 }
 
 @singleton()
 export default class ReduxStore extends BaseStore<State> {
   constructor() {
-    super(initialState, reducer);
+    super(initialState, reducers);
   }
 }

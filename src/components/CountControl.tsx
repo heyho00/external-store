@@ -1,21 +1,27 @@
 import useDispatch from "../hooks/useDispatch";
-import useReduxStore from "../hooks/useReduxStore";
+import useSelector from "../hooks/useSelector";
 import { decrease, increase } from "../stores/ReduxStore";
 
 export default function CountControl() {
   const dispatch = useDispatch();
 
-  const { state } = useReduxStore();
+  const count = useSelector((state) => state.count);
 
   return (
     <>
-      <p>{state.count}</p>
+      <p>{count}</p>
       <button type="button" onClick={() => dispatch(increase())}>
         Increase
+      </button>
+      <button type="button" onClick={() => dispatch(increase(10))}>
+        Increase 10
       </button>
 
       <button type="button" onClick={() => dispatch(decrease())}>
         Decrease
+      </button>
+      <button type="button" onClick={() => dispatch(decrease(10))}>
+        Decrease 10
       </button>
     </>
   );

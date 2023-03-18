@@ -1,9 +1,11 @@
+import ReduxStore, { State } from "../stores/ReduxStore";
 import { container } from "tsyringe";
+import useForceUpdate from "./useForceUpdate";
 import { useEffect } from "react";
-import useForceUpdate from "../hooks/useForceUpdate";
-import ReduxStore from "../stores/ReduxStore";
 
-export default function useReduxStore() {
+type Selector<T> = (state: State) => T;
+
+export default function useSelector<T>(selector: Selector<T>): T {
   const store = container.resolve(ReduxStore);
 
   const forceUpdate = useForceUpdate();
@@ -16,5 +18,5 @@ export default function useReduxStore() {
     };
   }, [store, forceUpdate]);
 
-  return store;
+  return selector(store.state);
 }
