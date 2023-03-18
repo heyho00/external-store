@@ -1,23 +1,20 @@
-import useCounterStore from "../hooks/useCounterStore";
+import useDispatch from "../hooks/useDispatch";
+import useReduxStore from "../hooks/useReduxStore";
+import { decrease, increase } from "../stores/ReduxStore";
 
 export default function CountControl() {
-  const counterStore = useCounterStore();
+  const dispatch = useDispatch();
 
-  const increase = () => {
-    counterStore.increase();
-  };
-  const decrease = () => {
-    counterStore.decrease();
-  };
+  const { state } = useReduxStore();
 
   return (
     <>
-      <p>{counterStore.count}</p>
-      <button type="button" onClick={increase}>
+      <p>{state.count}</p>
+      <button type="button" onClick={() => dispatch(increase())}>
         Increase
       </button>
 
-      <button type="button" onClick={decrease}>
+      <button type="button" onClick={() => dispatch(decrease())}>
         Decrease
       </button>
     </>

@@ -1,10 +1,12 @@
-import useCounterStore from "../hooks/useCounterStore";
+import useReduxStore from "../hooks/useReduxStore";
 
 export default function Counter() {
-  const counterStore = useCounterStore();
+  const store = useReduxStore();
+  const { state } = store;
+
   return (
     <>
-      <div>Count: {counterStore.count}</div>
+      <div>Count: {state.count}</div>
     </>
   );
 }
