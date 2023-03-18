@@ -1223,3 +1223,141 @@ export default function useSelector<T>(selector: Selector<T>): T {
 ```
 
 useReduxStore 지워버린다.
+
+## NameCard
+
+Counter랑 상관없는애도 이 단일 스토어인 Store를 부르기만하면 렌더되버린다.
+
+```js
+import { useEffect } from "react";
+import useSelector from "../hooks/useSelector";
+
+export default function NameCard() {
+  const name = useSelector((state) => state.name);
+  // useSelector  안에서 useReduxStore로 store를 부르기 때문에 강제 렌더됨.
+
+  useEffect(() => {
+    console.log("name card render");
+  });
+
+  return (
+    <>
+      <div>Name: {name}</div>
+    </>
+  );
+}
+```
+
+ReduxStore에 위치한 initialState에는 name 프로퍼티를 추가해줬다.
+
+그리고 App.tsx에 추가 후 위처럼 console을 찍어보면
+
+counter 버튼들을 누르면 name card도 리렌더된다.
+
+아니게 하고싶다.
+
+### useSelector
+
+```js
+import ReduxStore, { State } from "../stores/ReduxStore";
+import { container } from "tsyringe";
+import useForceUpdate from "./useForceUpdate";
+import { useEffect, useState } from "react";
+
+type Selector<T> = (state: State) => T;
+
+export default function useSelector<T>(selector: Selector<T>): T {
+  const store = container.resolve(ReduxStore);
+
+  const [state, setState] = useState(selector(store.state));
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    const update = () => {
+      // 특정 조건이 맞으면 forceUpdate 하려고
+      const newState = selector(store.state);
+      if (newState !== state) {
+        forceUpdate();
+        setState(newState);
+      }
+    };
+    store.addListener(update);
+
+    return () => store.removeListener(update);
+  }, [store, forceUpdate]);
+
+  return selector(store.state);
+}
+```
+
+useEffect 안에서 최신 state와 useSelector 내부에 갖고있는 state가 다를때만
+
+리렌더하고 state로 저장한다.
+
+카운터가 올라도 nameCard는 리렌더하지 않는다.
+
+### 이유없이 decrease 1 버튼엔 리렌더 하도록 하고싶다면?
+
+ReduxStore에 가서 reducers에서 name에 뭐라도 붙이면 상태가 변경되기 때문에 리렌더됨.
+
+```js
+const reducers = {
+  increase(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count + (action.payload ?? 1),
+    };
+  },
+  decrease(state: State, action: Action<number>) {
+    return {
+      ...state,
+      count: state.count - (action.payload ?? 1),
+      name: `${state.name}.`, // .이 늘어난다. ;;..
+    };
+  },
+};
+```
+
+그런데,. increase도 바뀐다.
+
+useSelector 안에서 useEffect를 이용해
+
+useSelector 내부에 새 값과 비교하기위해 저장한 값을 비교해서
+
+값이 달라질때만 리렌더 되도록 처리한다.
+
+```js
+import ReduxStore, { State } from "../stores/ReduxStore";
+import { container } from "tsyringe";
+import useForceUpdate from "./useForceUpdate";
+import { useEffect, useRef } from "react";
+
+type Selector<T> = (state: State) => T;
+
+export default function useSelector<T>(selector: Selector<T>): T {
+  const store = container.resolve(ReduxStore);
+
+  // const [state, setState] = useState(selector(store.state));
+  const state = useRef(selector(store.state)); // ref를 사용해 값 저장.
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    const update = () => {
+      // 특정 조건이 맞으면 forceUpdate 하려고
+      // selector의 결과가 object일 경우 따로 처리가 필요함
+      const newState = selector(store.state);
+      if (newState !== state.current) {
+        forceUpdate();
+        state.current = newState;
+      }
+    };
+    store.addListener(update);
+
+    return () => store.removeListener(update);
+  }, [store, forceUpdate]);
+
+  return selector(store.state);
+}
+```

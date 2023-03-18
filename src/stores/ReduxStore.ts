@@ -5,6 +5,7 @@ export type State = typeof initialState;
 
 const initialState = {
   count: 0,
+  name: "harry",
 };
 
 const reducers = {
@@ -18,6 +19,7 @@ const reducers = {
     return {
       ...state,
       count: state.count - (action.payload ?? 1),
+      name: `${state.name}.`,
     };
   },
 };
