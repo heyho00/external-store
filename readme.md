@@ -540,3 +540,66 @@ export default function Counter() {
 여기까지 하면
 
 store가 뭘 아무것도 갖고있지 않은 모양이 된다.
+
+캡슐화를 해줄 수 있다고 한다.
+
+이게 뭔말인지 한번 따라해보자.
+
+```js
+//Counter.tsx
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    // counterStore.addListener.forceUpdates.add(forceUpdate);
+    counterStore.addListener(forceUpdate);
+
+    return () => {
+      // counterStore.forceUpdates.delete(forceUpdate);
+      counterStore.removeListener(forceUpdate);
+    };
+  }, [counterStore, forceUpdate]);
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+```js
+// Store.ts
+
+import { singleton } from "tsyringe";
+
+// type ForceUpdate = () => void;
+type Listener = () => void;
+
+@singleton()
+export default class CounterStore {
+  count = 0;
+
+  // forceUpdates = new Set<ForceUpdate>();
+  listeners = new Set<Listener>();
+
+  update() {
+    this.listeners.forEach((listener) => {
+      listener();
+    });
+  }
+
+  // 추가
+  addListener(listener:Listener){
+    this.listeners.add(listener)
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
+  }
+}
+
+```

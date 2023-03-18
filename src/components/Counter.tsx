@@ -9,10 +9,10 @@ export default function Counter() {
   const forceUpdate = useForceUpdate();
 
   useEffect(() => {
-    counterStore.forceUpdates.add(forceUpdate);
+    counterStore.addListener(forceUpdate);
 
     return () => {
-      counterStore.forceUpdates.delete(forceUpdate);
+      counterStore.removeListener(forceUpdate);
     };
   }, [counterStore, forceUpdate]);
 

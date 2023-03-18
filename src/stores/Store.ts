@@ -1,16 +1,24 @@
 import { singleton } from "tsyringe";
 
-type ForceUpdate = () => void;
+type Listener = () => void;
 
 @singleton()
 export default class CounterStore {
   count = 0;
 
-  forceUpdates = new Set<ForceUpdate>();
+  listeners = new Set<Listener>();
 
   update() {
-    this.forceUpdates.forEach((forceUpdate) => {
-      forceUpdate();
+    this.listeners.forEach((listener) => {
+      listener();
     });
+  }
+
+  addListener(listener: Listener) {
+    this.listeners.add(listener);
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
   }
 }
