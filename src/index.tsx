@@ -1,6 +1,16 @@
-import * as ReactDOM from 'react-dom';
+import * as ReactDOM from "react-dom/client";
 
-import App from './App';
+import App from "./App";
 
-const container = document.getElementById('app');
-ReactDOM.render(<App />, container);
+function index() {
+  const element = document.getElementById("app");
+
+  if (!element) {
+    return;
+  }
+
+  const root = ReactDOM.createRoot(element);
+  root.render(<App />);
+}
+
+index();
