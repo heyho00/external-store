@@ -7,6 +7,7 @@ export default function App() {
     <>
       <p>Hello, world!</p>
       <Counter />
+      <Counter />
       <CountControl />
     </>
   );

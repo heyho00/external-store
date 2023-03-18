@@ -246,3 +246,297 @@ import { container } from "tsyringe";
 
 const counterStore = container.resolve(CounterStore);
 ```
+
+## Initial Files
+
+```js
+// src/components/Counter.tsx
+// Refresh 버튼을 잠깐 붙여놓은 Counter 컴포넌트.
+// counterStore에서 가져온 count를 화면에 그린다.
+
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+  const forceUpdate = useForceUpdate();
+
+  const handleClick = () => {
+    forceUpdate();
+  };
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+      <button type="button" onClick={handleClick}>
+        Refresh
+      </button>
+    </>
+  );
+}
+```
+
+```js
+// src/components/CountControl.tsx
+// 클릭시 counterStore.count를 1씩 올리고,
+// forceUpdate가 바로 실행되어 화면(count)이 리렌더된다.
+
+import { container } from "tsyringe";
+import useForceUpdate from "../hooks/useForceUpdate";
+import CounterStore from "../stores/Store";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  const handleClick = () => {
+    counterStore.count += 1;
+    forceUpdate();
+  };
+
+  return (
+    <>
+      <div>{counterStore.count}</div>
+      <button type="button" onClick={handleClick}>
+        Increase
+      </button>
+    </>
+  );
+}
+```
+
+```js
+// src/hooks/useForceUpdate.ts
+// 새 객체를 내부의 state로 set함으로써, force rerender 시키는 훅.
+
+import { useCallback, useState } from "react";
+
+export default function useForceUpdate() {
+  const [state, setState] = useState({});
+
+  return useCallback(() => setState({ ...state }), []);
+}
+```
+
+## Store안에 interface를 정의한다
+
+```js
+import { singleton } from "tsyringe";
+
+@singleton()
+export default class CounterStore {
+  count = 0;
+
+  forceUpdate: () => void;
+
+  update() {
+    this.forceUpdate();
+  }
+}
+```
+
+forceUpdate 를 타입만 지정해주고 다른 컴포넌트에서 함수를 주입한다.
+
+```js
+//Counter.tsx
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  counterStore.forceUpdate = forceUpdate; // !!!
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+이제 CountControl은 버튼만 있도록 정리한다.
+
+```js
+// CountControl.tsx
+
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  const handleClick = () => {
+    counterStore.count += 1;
+    counterStore.forceUpdate();
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleClick}>
+        Increase
+      </button>
+    </>
+  );
+}
+```
+
+여기까지 잘 작동하는걸 볼 수 있다.
+
+이제, 아무이유없이 그냥 Counter 컴포넌트를 하나 더 붙여보자.
+
+```js
+import "reflect-metadata";
+import Counter from "./components/Counter";
+import CountControl from "./components/CountControl";
+
+export default function App() {
+  return (
+    <>
+      <p>Hello, world!</p>
+      <Counter />
+      <Counter />
+      <CountControl />
+    </>
+  );
+}
+```
+
+이러면 위에 Counter는 0에 머물러있고,
+
+아래만 숫자가 update된다.
+
+위에께 등록을 해도 밑에서 덮어써서 그렇다.
+
+아래 Counter의 forceUpdate가 store에 담기는 듯.
+
+우선 아까부터 빨간줄쳐진 Store에 forceUpdate를 처리해준다.
+
+forceUpdate 함수로 사용하던걸 forceUpdates set 객체로 만들어준다.
+
+```js
+// Store.ts
+import { singleton } from "tsyringe";
+
+type ForceUpdate = () => void;
+
+@singleton()
+export default class CounterStore {
+  count = 0;
+
+  forceUpdates = new Set<ForceUpdate>();
+
+  update() {
+    this.forceUpdates.forEach((forceUpdate) => {
+      forceUpdate();
+    });
+  }
+}
+
+```
+
+```js
+// Counter.tsx
+
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  counterStore.forceUpdates.add(forceUpdate);
+  // 두 Counter 컴포넌트를 쓴다면, 두개의 각 forceUpdates를 넣어준다.
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+```js
+// CountControl.tsx
+
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  const handleClick = () => {
+    counterStore.count += 1;
+    counterStore.update();
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleClick}>
+        Increase
+      </button>
+    </>
+  );
+}
+```
+
+여기도 문제가 있다.
+
+```js
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  counterStore.forceUpdates.add(forceUpdate);
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+이렇게 그냥 넣으면 안된다.
+
+set 객체이고 Store에서 useCallback을 써서 중복으로 들어가지 않지만
+
+useEffect를 이용해주는게 좋다.
+
+```js
+이렇게;
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    counterStore.forceUpdates.add(forceUpdate);
+
+    return () => {
+      // clean up 까지 해줘야 렌더 끝났을때 혹시라도 forceUpdates가 불려도 문제가 없다.
+      counterStore.forceUpdates.delete(forceUpdate);
+    };
+  }, [counterStore, forceUpdate]);
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+여기까지 하면
+
+store가 뭘 아무것도 갖고있지 않은 모양이 된다.
