@@ -1,9 +1,9 @@
 import { container } from "tsyringe";
 import CounterStore from "../stores/Store";
-import useObjectStore from "./useObjectStore";
+import { useStore } from "usestore-ts";
 
 export default function useCounterStore() {
   const store = container.resolve(CounterStore);
 
-  return useObjectStore(store);
+  return useStore(store);
 }

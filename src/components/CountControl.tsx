@@ -1,8 +1,7 @@
 import useCounterStore from "../hooks/useCounterStore";
 
 export default function CountControl() {
-  const store = useCounterStore();
-  const { count } = store;
+  const [{ count }, store] = useCounterStore();
 
   return (
     <>
