@@ -1,20 +1,9 @@
 import { container } from "tsyringe";
 import CounterStore from "../stores/Store";
-import useForceUpdate from "../hooks/useForceUpdate";
-import { useEffect } from "react";
+import useObjectStore from "./useObjectStore";
 
 export default function useCounterStore() {
-  const counterStore = container.resolve(CounterStore);
+  const store = container.resolve(CounterStore);
 
-  const forceUpdate = useForceUpdate();
-
-  useEffect(() => {
-    counterStore.addListener(forceUpdate);
-
-    return () => {
-      counterStore.removeListener(forceUpdate);
-    };
-  }, [counterStore, forceUpdate]);
-
-  return counterStore;
+  return useObjectStore(store);
 }

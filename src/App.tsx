@@ -10,7 +10,7 @@ export default function App() {
       <Counter />
       <Counter />
       <CountControl />
-      <NameCard />
+      {/* <NameCard /> */}
     </>
   );
 }
