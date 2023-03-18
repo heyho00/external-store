@@ -216,7 +216,7 @@ TypeScript용 DI 도구(IoC Container).
 
 “Prop Drilling” 문제를 우아하게 해결할 수 있는 방법 중 하나(React로 한정하면 Context도 쓸 수 있다).
 
-#### 설치
+### 설치
 
 ```bash
 npm i tsyringe reflect-metadata
@@ -545,6 +545,8 @@ store가 뭘 아무것도 갖고있지 않은 모양이 된다.
 
 이게 뭔말인지 한번 따라해보자.
 
+## addListener (상태 변경 알림)
+
 ```js
 //Counter.tsx
 
@@ -603,3 +605,482 @@ export default class CounterStore {
 }
 
 ```
+
+## decrease
+
+```js
+// CountControl.tsx
+
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  // const handleClick = () => {
+  const increase = () => {
+    counterStore.count += 1;
+    counterStore.update();
+  };
+
+  // 추가
+  const decrease = () => {
+    counterStore.count -= 1;
+    counterStore.update();
+  };
+
+  return (
+    <>
+      <button type="button" onClick={increase}>
+        Increase
+      </button>
+      // 추가
+      <button type="button" onClick={decrease}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+위에서 addListener 패턴을 구독이라하며
+
+counterStore에 forceUpdate를 addListener를 통해 등록함으로써 구독하게되어
+
+update가 호출될때마다 변경된 데이터를 받게되는 것. !!
+
+이 Store의 update를 반대 개념인 publish, 발행으로 바꿔주자.
+
+```js
+@singleton()
+export default class CounterStore {
+  count = 0;
+
+  listeners = new Set<Listener>();
+
+  publish() { //수정
+    this.listeners.forEach((listener) => {
+      listener();
+    });
+  }
+
+  addListener(listener: Listener) {
+    this.listeners.add(listener);
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
+  }
+}
+
+```
+
+update 쓰는곳도 바꿔준다.
+
+```js
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  const increase = () => {
+    counterStore.count += 1;
+    counterStore.publish(); // 수정함
+  };
+  const decrease = () => {
+    counterStore.count -= 1;
+    counterStore.publish(); // 수정함
+  };
+
+  return (
+    <>
+      <button type="button" onClick={increase}>
+        Increase
+      </button>
+
+      <button type="button" onClick={decrease}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+## Test
+
+```js
+// src/App.test.tsx
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import App from "./App";
+
+test("App", () => {
+  render(<App />);
+});
+
+describe("App", () => {
+  it("counte", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText("Increase"));
+    screen.getByText("Count: 1");
+  });
+});
+```
+
+Counter 컴포넌트 2개를 사용중이라 'Count: 1'이 2개가 떠서 통과되지 않는다.
+
+### 해결책
+
+```js
+describe("App", () => {
+  it("counte", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByText("Increase"));
+
+    const elements = screen.getAllByText("Count: 1");
+
+    expect(elements).toHaveLength(2);
+  });
+});
+```
+
+두번 누르면?
+
+context를 이용해서 나눠준다.
+
+```js
+import { fireEvent, render, screen } from "@testing-library/react";
+import App from "./App";
+
+const context = describe; //
+
+test("App", () => {
+  render(<App />);
+});
+
+describe("App", () => {
+  context("when press increase button once", () => {
+    it("counte", () => {
+      render(<App />);
+
+      fireEvent.click(screen.getByText("Increase"));
+
+      const elements = screen.getAllByText("Count: 1");
+
+      expect(elements).toHaveLength(2);
+    });
+  });
+
+  context("when press increase button twice", () => {
+    it("counte", () => {
+      render(<App />);
+
+      fireEvent.click(screen.getByText("Increase"));
+      fireEvent.click(screen.getByText("Increase"));
+
+      const elements = screen.getAllByText("Count: 2");
+
+      expect(elements).toHaveLength(2);
+    });
+  });
+});
+```
+
+통과되지 않음. 왜!?
+
+앞에 테스트에서 이미 Count가 1이 된 상태에서 다시 두번 누른게 됨.
+
+각 테스트가 실행되기전, 후 모든 테스트가 실행되기 전, 후 처리를 해줄 수 있다.
+
+여기선 beforeEach(()=>{}) 를 써주겠다.
+
+```js
+import { fireEvent, render, screen } from "@testing-library/react";
+import App from "./App";
+import { container } from "tsyringe";
+
+const context = describe;
+
+test("App", () => {
+  render(<App />);
+});
+
+describe("App", () => {
+  // 추가 --------------------------------
+  beforeEach(() => {
+    container.clearInstances();
+  });
+  // -------------------------------------
+
+  context("when press increase button once", () => {
+    it("counte", () => {
+      render(<App />);
+
+      fireEvent.click(screen.getByText("Increase"));
+
+      const elements = screen.getAllByText("Count: 1");
+
+      expect(elements).toHaveLength(2);
+    });
+  });
+
+  context("when press increase button twice", () => {
+    it("counte", () => {
+      render(<App />);
+
+      fireEvent.click(screen.getByText("Increase"));
+      fireEvent.click(screen.getByText("Increase"));
+
+      const elements = screen.getAllByText("Count: 2");
+
+      expect(elements).toHaveLength(2);
+    });
+  });
+});
+```
+
+여기까지 상태 변경 알림까지 했다.
+
+## refac
+
+```js
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+import { useEffect } from "react";
+
+export default function Counter() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    counterStore.addListener(forceUpdate);
+
+    return () => {
+      counterStore.removeListener(forceUpdate);
+    };
+  }, [counterStore, forceUpdate]);
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+여기 return 위쪽에 store를 가져와서 사용, forceUpdate를 store에 등록하는 부분을
+
+한 묶음으로 볼 수 있다. -> hook으로 분리한다.
+
+```js
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+import useForceUpdate from "../hooks/useForceUpdate";
+import { useEffect } from "react";
+
+function useCounterStore() {
+  const counterStore = container.resolve(CounterStore);
+
+  const forceUpdate = useForceUpdate();
+
+  useEffect(() => {
+    counterStore.addListener(forceUpdate);
+
+    return () => {
+      counterStore.removeListener(forceUpdate);
+    };
+  }, [counterStore, forceUpdate]);
+
+  return counterStore;
+}
+// 뒤에 따로 파일로 빼버림
+
+
+
+wow !! Counter 컴포넌트가 이렇게 간단해졌다.
+
+export default function Counter() {
+  const counterStore = useCounterStore();
+
+  return (
+    <>
+      <div>Count: {counterStore.count}</div>
+    </>
+  );
+}
+```
+
+### 잠깐 CountControl도 보자.
+
+```js
+import { container } from "tsyringe";
+import CounterStore from "../stores/Store";
+
+export default function CountControl() {
+  const counterStore = container.resolve(CounterStore);
+
+  const increase = () => {
+    counterStore.count += 1;
+    counterStore.publish();
+  };
+  const decrease = () => {
+    counterStore.count -= 1;
+    counterStore.publish();
+  };
+
+  return (
+    <>
+      <p>{counterStore.count}</p> // 얘를 잠깐 추가해봄. update 안된다.
+      <button type="button" onClick={increase}>
+        Increase
+      </button>
+      <button type="button" onClick={decrease}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+따로 container.resolve(CounterStore)를 통해 counterStore를 가져오고 있는데
+
+이러면 이 안의 counterStore.count가 update 안된다.
+
+useCounterStore도 안에 똑같이
+
+const counterStore = container.resolve(CounterStore); 불러오지만
+
+useEffect를 이용해 forceUpdate를 걸어주는게 다르다.
+
+그러니까 CountControl 컴포넌트에서도 counterStore.count 를 쓰고싶으면
+
+마찬가지로 hook을 불러서 써줘야 한다.
+
+```js
+// CountControl.tsx
+
+import useCounterStore from "../hooks/useCounterStore";
+
+export default function CountControl() {
+  const counterStore = useCounterStore();
+
+  const increase = () => {
+    counterStore.count += 1;
+    counterStore.publish();
+  };
+  const decrease = () => {
+    counterStore.count -= 1;
+    counterStore.publish();
+  };
+
+  return (
+    <>
+      <p>{counterStore.count}</p>
+      <button type="button" onClick={increase}>
+        Increase
+      </button>
+
+      <button type="button" onClick={decrease}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+잘 작동함.
+
+근데 CountControl 부분에서 너무 캡슐화가 안됐다?
+
+해보자.
+
+```js
+// Store.ts
+
+import { singleton } from "tsyringe";
+
+type Listener = () => void;
+
+@singleton()
+export default class CounterStore {
+  count = 0;
+
+  listeners = new Set<Listener>();
+
+  publish() {
+    this.listeners.forEach((listener) => {
+      listener();
+    });
+  }
+
+// 추가 -----------------------------------
+
+  increase() {
+    this.count += 1;
+    this.publish();
+  }
+
+  decrease() {
+    this.count += 1;
+    this.publish();
+  }
+
+// ----------------------------------------
+  addListener(listener: Listener) {
+    this.listeners.add(listener);
+  }
+
+  removeListener(listener: Listener) {
+    this.listeners.delete(listener);
+  }
+}
+
+
+```
+
+```js
+//CountControl.tsx
+
+import useCounterStore from "../hooks/useCounterStore";
+
+export default function CountControl() {
+  const counterStore = useCounterStore();
+
+  // 수정 --------------------------------
+  const increase = () => {
+    counterStore.increase();
+  };
+
+  const decrease = () => {
+    counterStore.decrease();
+  };
+
+  return (
+    <>
+      <p>{counterStore.count}</p>
+      <button type="button" onClick={increase}>
+        Increase
+      </button>
+
+      <button type="button" onClick={decrease}>
+        Decrease
+      </button>
+    </>
+  );
+}
+```
+
+캡슐화.
+
+Store에 로직이 다 들어가 있고
+
+쓰는 곳에선 인터페이스를 알고 사용만 하면됨.
+
+CountControl 컴포넌트에 실제로 데이터를 변형하거나 하는 로직이 하나도 없게된다. -> 관심사의 분리

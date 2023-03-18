@@ -8,10 +8,20 @@ export default class CounterStore {
 
   listeners = new Set<Listener>();
 
-  update() {
+  publish() {
     this.listeners.forEach((listener) => {
       listener();
     });
+  }
+
+  increase() {
+    this.count += 1;
+    this.publish();
+  }
+
+  decrease() {
+    this.count -= 1;
+    this.publish();
   }
 
   addListener(listener: Listener) {
